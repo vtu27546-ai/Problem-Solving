@@ -1,0 +1,534 @@
+import java.util.*;
+
+/**
+ * Ride Sharing Platform Simulator
+ *
+ * Features:
+ * - Register riders and drivers
+ * - Drivers can go online/offline
+ * - Riders can request rides
+ * - Finds the nearest available driver
+ * - Calculates fare based on distance
+ * - Completes rides and updates driver availability
+ */
+public class RideSharingSimulator {
+
+    // =========================
+    // ENUMS
+    // =========================
+
+    enum RideStatus {
+        REQUESTED,
+        ACCEPTED,
+        COMPLETED,
+        CANCELLED
+    }
+
+    enum VehicleType {
+        BIKE,
+        AUTO,
+        CAR
+    }
+
+    // =========================
+    // LOCATION
+    // =========================
+
+    static class Location {
+        double latitude;
+        double longitude;
+
+        Location(double latitude, double longitude) {
+            this.latitude = latitude;
+            this.longitude = longitude;
+        }
+
+        double distanceTo(Location other) {
+            double dx = latitude - other.latitude;
+            double dy = longitude - other.longitude;
+
+            // Simplified distance calculation for simulation
+            return Math.sqrt(dx * dx + dy * dy) * 10;
+        }
+
+        @Override
+        public String toString() {
+            return "(" + latitude + ", " + longitude + ")";
+        }
+    }
+
+    // =========================
+    // USER
+    // =========================
+
+    static abstract class User {
+        protected int id;
+        protected String name;
+        protected String phone;
+        protected Location location;
+
+        User(int id, String name, String phone, Location location) {
+            this.id = id;
+            this.name = name;
+            this.phone = phone;
+            this.location = location;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public Location getLocation() {
+            return location;
+        }
+
+        public void setLocation(Location location) {
+            this.location = location;
+        }
+    }
+
+    // =========================
+    // RIDER
+    // =========================
+
+    static class Rider extends User {
+        Rider(int id, String name, String phone, Location location) {
+            super(id, name, phone, location);
+        }
+    }
+
+    // =========================
+    // VEHICLE
+    // =========================
+
+    static class Vehicle {
+        String registrationNumber;
+        VehicleType type;
+
+        Vehicle(String registrationNumber, VehicleType type) {
+            this.registrationNumber = registrationNumber;
+            this.type = type;
+        }
+
+        @Override
+        public String toString() {
+            return type + " [" + registrationNumber + "]";
+        }
+    }
+
+    // =========================
+    // DRIVER
+    // =========================
+
+    static class Driver extends User {
+        private Vehicle vehicle;
+        private boolean available;
+
+        Driver(int id, String name, String phone,
+               Location location, Vehicle vehicle) {
+            super(id, name, phone, location);
+            this.vehicle = vehicle;
+            this.available = false;
+        }
+
+        public void goOnline() {
+            available = true;
+            System.out.println(name + " is now ONLINE.");
+        }
+
+        public void goOffline() {
+            available = false;
+            System.out.println(name + " is now OFFLINE.");
+        }
+
+        public boolean isAvailable() {
+            return available;
+        }
+
+        public void setAvailable(boolean available) {
+            this.available = available;
+        }
+
+        public Vehicle getVehicle() {
+            return vehicle;
+        }
+    }
+
+    // =========================
+    // RIDE
+    // =========================
+
+    static class Ride {
+        private int rideId;
+        private Rider rider;
+        private Driver driver;
+        private Location pickup;
+        private Location destination;
+        private double distance;
+        private double fare;
+        private RideStatus status;
+
+        Ride(int rideId, Rider rider,
+             Location pickup, Location destination) {
+
+            this.rideId = rideId;
+            this.rider = rider;
+            this.pickup = pickup;
+            this.destination = destination;
+            this.status = RideStatus.REQUESTED;
+        }
+
+        public void assignDriver(Driver driver) {
+            this.driver = driver;
+            this.status = RideStatus.ACCEPTED;
+            driver.setAvailable(false);
+
+            System.out.println(
+                "Driver " + driver.getName() +
+                " accepted Ride #" + rideId
+            );
+        }
+
+        public void completeRide() {
+            if (driver == null) {
+                System.out.println("No driver assigned.");
+                return;
+            }
+
+            distance = pickup.distanceTo(destination);
+            fare = calculateFare(driver.getVehicle().type);
+
+            status = RideStatus.COMPLETED;
+
+            driver.setAvailable(true);
+            rider.setLocation(destination);
+            driver.setLocation(destination);
+
+            System.out.println("\nRide #" + rideId + " COMPLETED");
+            System.out.println("Distance : " +
+                    String.format("%.2f", distance) + " km");
+            System.out.println("Fare     : ₹" +
+                    String.format("%.2f", fare));
+        }
+
+        private double calculateFare(VehicleType type) {
+
+            double baseFare;
+            double perKm;
+
+            switch (type) {
+                case BIKE:
+                    baseFare = 20;
+                    perKm = 8;
+                    break;
+
+                case AUTO:
+                    baseFare = 30;
+                    perKm = 12;
+                    break;
+
+                case CAR:
+                    baseFare = 50;
+                    perKm = 18;
+                    break;
+
+                default:
+                    baseFare = 30;
+                    perKm = 10;
+            }
+
+            return baseFare + (distance * perKm);
+        }
+
+        public int getRideId() {
+            return rideId;
+        }
+
+        public RideStatus getStatus() {
+            return status;
+        }
+
+        public Driver getDriver() {
+            return driver;
+        }
+    }
+
+    // =========================
+    // RIDE SHARING PLATFORM
+    // =========================
+
+    static class RideSharingPlatform {
+
+        private Map<Integer, Rider> riders = new HashMap<>();
+        private Map<Integer, Driver> drivers = new HashMap<>();
+        private Map<Integer, Ride> rides = new HashMap<>();
+
+        private int nextRideId = 1;
+
+        // Register Rider
+        public void registerRider(Rider rider) {
+            riders.put(rider.getId(), rider);
+
+            System.out.println(
+                "Rider registered: " + rider.getName()
+            );
+        }
+
+        // Register Driver
+        public void registerDriver(Driver driver) {
+            drivers.put(driver.getId(), driver);
+
+            System.out.println(
+                "Driver registered: " + driver.getName()
+            );
+        }
+
+        // Find nearest available driver
+        private Driver findNearestDriver(Location pickup) {
+
+            Driver nearestDriver = null;
+            double minimumDistance = Double.MAX_VALUE;
+
+            for (Driver driver : drivers.values()) {
+
+                if (!driver.isAvailable()) {
+                    continue;
+                }
+
+                double distance =
+                        driver.getLocation().distanceTo(pickup);
+
+                if (distance < minimumDistance) {
+                    minimumDistance = distance;
+                    nearestDriver = driver;
+                }
+            }
+
+            return nearestDriver;
+        }
+
+        // Request Ride
+        public Ride requestRide(
+                int riderId,
+                Location pickup,
+                Location destination) {
+
+            Rider rider = riders.get(riderId);
+
+            if (rider == null) {
+                System.out.println("Rider not found.");
+                return null;
+            }
+
+            System.out.println(
+                "\n" + rider.getName() + " requested a ride."
+            );
+
+            Driver driver = findNearestDriver(pickup);
+
+            if (driver == null) {
+                System.out.println(
+                    "No available drivers nearby."
+                );
+                return null;
+            }
+
+            Ride ride = new Ride(
+                    nextRideId++,
+                    rider,
+                    pickup,
+                    destination
+            );
+
+            rides.put(ride.getRideId(), ride);
+
+            System.out.println(
+                "Nearest driver found: " +
+                driver.getName()
+            );
+
+            ride.assignDriver(driver);
+
+            return ride;
+        }
+
+        public void completeRide(int rideId) {
+
+            Ride ride = rides.get(rideId);
+
+            if (ride == null) {
+                System.out.println("Ride not found.");
+                return;
+            }
+
+            ride.completeRide();
+        }
+
+        public void showDrivers() {
+
+            System.out.println("\n--- Drivers ---");
+
+            for (Driver driver : drivers.values()) {
+
+                System.out.println(
+                    driver.getName() +
+                    " | Vehicle: " +
+                    driver.getVehicle() +
+                    " | Available: " +
+                    driver.isAvailable() +
+                    " | Location: " +
+                    driver.getLocation()
+                );
+            }
+        }
+    }
+
+    // =========================
+    // MAIN
+    // =========================
+
+    public static void main(String[] args) {
+
+        RideSharingPlatform platform =
+                new RideSharingPlatform();
+
+        // -------------------------
+        // Create Riders
+        // -------------------------
+
+        Rider rider1 = new Rider(
+                1,
+                "Arun",
+                "9876543210",
+                new Location(13.114, 80.154)
+        );
+
+        Rider rider2 = new Rider(
+                2,
+                "Priya",
+                "9876501234",
+                new Location(13.120, 80.160)
+        );
+
+        platform.registerRider(rider1);
+        platform.registerRider(rider2);
+
+        // -------------------------
+        // Create Drivers
+        // -------------------------
+
+        Driver driver1 = new Driver(
+                101,
+                "Raj",
+                "9000000001",
+                new Location(13.115, 80.155),
+                new Vehicle("TN01AB1234", VehicleType.CAR)
+        );
+
+        Driver driver2 = new Driver(
+                102,
+                "Kumar",
+                "9000000002",
+                new Location(13.125, 80.165),
+                new Vehicle("TN01CD5678", VehicleType.AUTO)
+        );
+
+        Driver driver3 = new Driver(
+                103,
+                "Vijay",
+                "9000000003",
+                new Location(13.100, 80.140),
+                new Vehicle("TN01EF9999", VehicleType.BIKE)
+        );
+
+        platform.registerDriver(driver1);
+        platform.registerDriver(driver2);
+        platform.registerDriver(driver3);
+
+        // -------------------------
+        // Drivers go online
+        // -------------------------
+
+        driver1.goOnline();
+        driver2.goOnline();
+        driver3.goOnline();
+
+        platform.showDrivers();
+
+        // -------------------------
+        // Rider 1 requests ride
+        // -------------------------
+
+        Ride ride1 = platform.requestRide(
+                rider1.getId(),
+                rider1.getLocation(),
+                new Location(13.145, 80.180)
+        );
+
+        if (ride1 != null) {
+            platform.completeRide(ride1.getRideId());
+        }
+
+        // -------------------------
+        // Rider 2 requests ride
+        // -------------------------
+
+        Ride ride2 = platform.requestRide(
+                rider2.getId(),
+                rider2.getLocation(),
+                new Location(13.180, 80.200)
+        );
+
+        if (ride2 != null) {
+            platform.completeRide(ride2.getRideId());
+        }
+
+        // -------------------------
+        // Final driver status
+        // -------------------------
+
+        platform.showDrivers();
+    }
+}
+
+
+Rider registered: Arun
+Rider registered: Priya
+Driver registered: Raj
+Driver registered: Kumar
+Driver registered: Vijay
+Raj is now ONLINE.
+Kumar is now ONLINE.
+Vijay is now ONLINE.
+
+--- Drivers ---
+Raj | Vehicle: CAR [TN01AB1234] | Available: true | Location: (13.115, 80.155)
+Kumar | Vehicle: AUTO [TN01CD5678] | Available: true | Location: (13.125, 80.165)
+Vijay | Vehicle: BIKE [TN01EF9999] | Available: true | Location: (13.1, 80.14)
+
+Arun requested a ride.
+Nearest driver found: Raj
+Driver Raj accepted Ride #1
+
+Ride #1 COMPLETED
+Distance : 0.40 km
+Fare     : ?57.28
+
+Priya requested a ride.
+Nearest driver found: Kumar
+Driver Kumar accepted Ride #2
+
+Ride #2 COMPLETED
+Distance : 0.72 km
+Fare     : ?38.65
+
+--- Drivers ---
+Raj | Vehicle: CAR [TN01AB1234] | Available: true | Location: (13.145, 80.18)
+Kumar | Vehicle: AUTO [TN01CD5678] | Available: true | Location: (13.18, 80.2)
+Vijay | Vehicle: BIKE [TN01EF9999] | Available: true | Location: (13.1, 80.14)
+
+=== Code Execution Successful ===
