@@ -1,0 +1,19 @@
+class Solution {
+    public boolean rotateString(String s, String goal) {
+        return s.length() == goal.length() && (s + s).contains(goal);
+    }
+}
+
+Accepted
+Runtime: 0 ms
+Case 1
+Case 2
+Input
+s =
+"m"
+goal =
+"f"
+Output
+false
+Expected
+false
