@@ -1,0 +1,69 @@
+import java.util.HashMap;
+import java.util.Map;
+
+class UndergroundSystem {
+    // Maps customer ID -> Pair(Start Station, Check-in Time)
+    private Map<Integer, CheckInInfo> checkIns;
+    
+    // Maps "StartStation->EndStation" -> Pair(Total Travel Time, Trip Count)
+    private Map<String, RouteInfo> routeData;
+
+    private static class CheckInInfo {
+        String stationName;
+        int checkInTime;
+
+        CheckInInfo(String stationName, int checkInTime) {
+            this.stationName = stationName;
+            this.checkInTime = checkInTime;
+        }
+    }
+
+    private static class RouteInfo {
+        double totalTime;
+        int tripCount;
+
+        RouteInfo(double totalTime, int tripCount) {
+            this.totalTime = totalTime;
+            this.tripCount = tripCount;
+        }
+    }
+
+    public UndergroundSystem() {
+        checkIns = new HashMap<>();
+        routeData = new HashMap<>();
+    }
+    
+    public void checkIn(int id, String stationName, int t) {
+        checkIns.put(id, new CheckInInfo(stationName, t));
+    }
+    
+    public void checkOut(int id, String stationName, int t) {
+        CheckInInfo info = checkIns.remove(id);
+        String routeKey = info.stationName + "->" + stationName;
+        int duration = t - info.checkInTime;
+
+        RouteInfo route = routeData.getOrDefault(routeKey, new RouteInfo(0, 0));
+        route.totalTime += duration;
+        route.tripCount += 1;
+        routeData.put(routeKey, route);
+    }
+    
+    public double getAverageTime(String startStation, String endStation) {
+        String routeKey = startStation + "->" + endStation;
+        RouteInfo route = routeData.get(routeKey);
+        return route.totalTime / route.tripCount;
+    }
+}
+
+
+Accepted
+Runtime: 19 ms
+Case 1
+Case 2
+Input
+["UndergroundSystem","checkIn","checkIn","checkIn","checkOut","checkOut","checkOut","getAverageTime","getAverageTime","checkIn","getAverageTime","checkOut","getAverageTime"]
+[[],[45,"Leyton",3],[32,"Paradise",8],[27,"Leyton",10],[45,"Waterloo",15],[27,"Waterloo",20],[32,"Cambridge",22],["Paradise","Cambridge"],["Leyton","Waterloo"],[10,"Leyton",24],["Leyton","Waterloo"],[10,"Waterloo",38],["Leyton","Waterloo"]]
+Output
+[null,null,null,null,null,null,null,14.00000,11.00000,null,11.00000,null,12.00000]
+Expected
+[null,null,null,null,null,null,null,14.00000,11.00000,null,11.00000,null,12.00000]
