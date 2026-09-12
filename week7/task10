@@ -1,0 +1,52 @@
+import java.util.*;
+
+class ThroneInheritance {
+    private String king;
+    private Map<String, List<String>> children;
+    private Set<String> dead;
+
+    public ThroneInheritance(String kingName) {
+        this.king = kingName;
+        this.children = new HashMap<>();
+        this.dead = new HashSet<>();
+        this.children.put(kingName, new ArrayList<>());
+    }
+    
+    public void birth(String parentName, String childName) {
+        this.children.computeIfAbsent(parentName, k -> new ArrayList<>()).add(childName);
+        this.children.put(childName, new ArrayList<>());
+    }
+    
+    public void death(String name) {
+        this.dead.add(name);
+    }
+    
+    public List<String> getInheritanceOrder() {
+        List<String> order = new ArrayList<>();
+        dfs(king, order);
+        return order;
+    }
+
+    private void dfs(String node, List<String> order) {
+        if (!dead.contains(node)) {
+            order.add(node);
+        }
+        for (String child : children.getOrDefault(node, Collections.emptyList())) {
+            dfs(child, order);
+        }
+    }
+}
+
+
+
+Accepted
+Runtime: 5 ms
+Case 1
+Input
+["ThroneInheritance","birth","birth","birth","birth","birth","birth","getInheritanceOrder","death","getInheritanceOrder"]
+[["king"],["king","andy"],["king","bob"],["king","catherine"],["andy","matthew"],["bob","alex"],["bob","asha"],[null],["bob"],[null]]
+Output
+[null,null,null,null,null,null,null,["king","andy","matthew","bob","alex","asha","catherine"],null,["king","andy","matthew","alex","asha","catherine"]]
+Expected
+[null,null,null,null,null,null,null,["king","andy","matthew","bob","alex","asha","catherine"],null,["king","andy","matthew","alex","asha","catherine"]]
+
